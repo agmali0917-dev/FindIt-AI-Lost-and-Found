@@ -3,7 +3,7 @@
  * Sends verification, password reset, and match notification emails
  */
 
-import { transporter } from '../config/nodemailer.js';
+import resend from '../config/resend.js';
 
 const FROM = process.env.EMAIL_FROM || 'FindIt <noreply@findit.app>';
 const BASE_URL = process.env.CLIENT_URL || 'http://localhost:3000';
@@ -53,7 +53,7 @@ const baseTemplate = (content) => `
 
 export const sendVerificationEmail = async (user, token) => {
   const url = `${BASE_URL}/verify-email/${token}`;
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: user.email,
     subject: 'Verify your FindIt account',
@@ -70,7 +70,7 @@ export const sendVerificationEmail = async (user, token) => {
 
 export const sendPasswordResetEmail = async (user, token) => {
   const url = `${BASE_URL}/reset-password/${token}`;
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: user.email,
     subject: 'Reset your FindIt password',
@@ -88,7 +88,7 @@ export const sendPasswordResetEmail = async (user, token) => {
 export const sendMatchNotificationEmail = async (user, foundItem, lostItem, score) => {
   const url = `${BASE_URL}/items/lost/${lostItem._id}`;
   const percent = Math.round(score * 100);
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: user.email,
     subject: `🎉 Potential match found for "${lostItem.title}"`,
@@ -112,7 +112,7 @@ export const sendMatchNotificationEmail = async (user, foundItem, lostItem, scor
 };
 
 export const sendWelcomeEmail = async (user) => {
-  await transporter.sendMail({
+  await resend.emails.send({
     from: FROM,
     to: user.email,
     subject: 'Welcome to FindIt! 🔍',
