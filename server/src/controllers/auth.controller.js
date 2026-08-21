@@ -111,14 +111,18 @@ export const login = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Email and password are required.');
   }
 
+  const normalizedEmail = email.toLowerCase().trim();
+
   // Find user with password
-  const user = await User.findOne({ email }).select('+password +refreshToken');
+  const user = await User.findOne({ email: normalizedEmail }).select('+password +refreshToken');
+
   if (!user) {
     throw new ApiError(401, 'Invalid email or password.');
   }
 
   // Check password
   const isPasswordValid = await user.comparePassword(password);
+  
   if (!isPasswordValid) {
     throw new ApiError(401, 'Invalid email or password.');
   }
