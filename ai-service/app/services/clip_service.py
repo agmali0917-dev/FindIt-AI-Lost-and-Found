@@ -46,7 +46,7 @@ class CLIPService:
             logger.info(f"Loading CLIP {settings.CLIP_MODEL} on {self.device}...")
             self.model, _, self.preprocess = open_clip.create_model_and_transforms(
                 settings.CLIP_MODEL,
-                pretrained="openai"
+                pretrained="datacompdr"
             )
             self.tokenizer = open_clip.get_tokenizer(settings.CLIP_MODEL)
             self.model = self.model.to(self.device)
