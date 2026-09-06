@@ -3,7 +3,17 @@
  * Sends verification, password reset, and match notification emails
  */
 
-import resend from '../config/resend.js';
+import nodemailer from 'nodemailer';
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT || 587,
+  secure: process.env.SMTP_PORT == '465', // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 const FROM = process.env.EMAIL_FROM || 'FindIt <noreply@findit.app>';
 const BASE_URL = process.env.CLIENT_URL || 'http://localhost:3000';
@@ -51,84 +61,107 @@ const baseTemplate = (content) => `
 
 // ─── Send Functions ────────────────────────────────────────────────────────────
 
-export const sendVerificationEmail = async (user, token) => {
-  const url = `${BASE_URL}/verify-email/${token}`;
-  await resend.emails.send({
-    from: FROM,
-    to: user.email,
-    subject: 'Verify your FindIt account',
-    html: baseTemplate(`
-      <h2 style="color:#e2e8f0; margin-top:0;">Welcome to FindIt, ${user.name}! 👋</h2>
-      <p>Thanks for signing up. Please verify your email address to get started.</p>
-      <div style="text-align:center">
-        <a href="${url}" class="btn">Verify Email Address</a>
-      </div>
-      <p style="font-size:13px; color:#475569;">This link expires in 24 hours. If you didn't create an account, you can ignore this email.</p>
-    `),
-  });
+export const sendVerificationEmail = async (user, otp) => {
+  try {
+    await transporter.sendMail({
+      from: FROM,
+      to: user.email,
+      subject: 'Verify your FindIt account',
+      html: baseTemplate(`
+        <h2 style="color:#e2e8f0; margin-top:0;">Welcome to FindIt, ${user.name}! 👋</h2>
+        <p>Thanks for signing up. Your verification code is:</p>
+        <div class="code">
+          ${otp}
+        </div>
+        <p style="font-size:13px; color:#475569;">This code expires in 10 minutes. If you didn't create an account, you can safely ignore this email.</p>
+      `),
+    });
+    console.log(`[Email] Verification OTP sent successfully to ${user.email}`);
+  } catch (error) {
+    console.error(`[Email Error] Failed to send verification email to ${user.email}:`, error.message);
+    throw error;
+  }
 };
 
 export const sendPasswordResetEmail = async (user, token) => {
   const url = `${BASE_URL}/reset-password/${token}`;
-  await resend.emails.send({
-    from: FROM,
-    to: user.email,
-    subject: 'Reset your FindIt password',
-    html: baseTemplate(`
-      <h2 style="color:#e2e8f0; margin-top:0;">Password Reset Request</h2>
-      <p>Hi ${user.name}, we received a request to reset your password.</p>
-      <div style="text-align:center">
-        <a href="${url}" class="btn">Reset Password</a>
-      </div>
-      <p style="font-size:13px; color:#475569;">This link expires in 1 hour. If you didn't request this, please ignore this email and your password will remain unchanged.</p>
-    `),
-  });
+  try {
+    await transporter.sendMail({
+      from: FROM,
+      to: user.email,
+      subject: 'Reset your FindIt password',
+      html: baseTemplate(`
+        <h2 style="color:#e2e8f0; margin-top:0;">Password Reset Request</h2>
+        <p>Hi ${user.name}, we received a request to reset your password.</p>
+        <div style="text-align:center">
+          <a href="${url}" class="btn">Reset Password</a>
+        </div>
+        <p style="font-size:13px; color:#475569;">This link expires in 1 hour. If you didn't request this, please ignore this email and your password will remain unchanged.</p>
+      `),
+    });
+    console.log(`[Email] Password reset email sent successfully to ${user.email}`);
+  } catch (error) {
+    console.error(`[Email Error] Failed to send password reset email to ${user.email}:`, error.message);
+    throw error;
+  }
 };
 
 export const sendMatchNotificationEmail = async (user, foundItem, lostItem, score) => {
   const url = `${BASE_URL}/items/lost/${lostItem._id}`;
   const percent = Math.round(score * 100);
-  await resend.emails.send({
-    from: FROM,
-    to: user.email,
-    subject: `🎉 Potential match found for "${lostItem.title}"`,
-    html: baseTemplate(`
-      <h2 style="color:#e2e8f0; margin-top:0;">We found a potential match! 🎉</h2>
-      <p>Hi ${user.name}, our AI has found a potential match for your lost item.</p>
-      <div style="background:#0f172a; border-radius:12px; padding:20px; margin:20px 0;">
-        <p style="margin:0; font-size:13px; color:#64748b;">YOUR LOST ITEM</p>
-        <p style="margin:4px 0 16px; font-size:18px; font-weight:700; color:#e2e8f0;">${lostItem.title}</p>
-        <p style="margin:0; font-size:13px; color:#64748b;">MATCHED WITH</p>
-        <p style="margin:4px 0 16px; font-size:18px; font-weight:700; color:#e2e8f0;">${foundItem.title}</p>
-        <div style="text-align:center;">
-          <span class="badge">AI Confidence: ${percent}%</span>
+  try {
+    await transporter.sendMail({
+      from: FROM,
+      to: user.email,
+      subject: `🎉 Potential match found for "${lostItem.title}"`,
+      html: baseTemplate(`
+        <h2 style="color:#e2e8f0; margin-top:0;">We found a potential match! 🎉</h2>
+        <p>Hi ${user.name}, our AI has found a potential match for your lost item.</p>
+        <div style="background:#0f172a; border-radius:12px; padding:20px; margin:20px 0;">
+          <p style="margin:0; font-size:13px; color:#64748b;">YOUR LOST ITEM</p>
+          <p style="margin:4px 0 16px; font-size:18px; font-weight:700; color:#e2e8f0;">${lostItem.title}</p>
+          <p style="margin:0; font-size:13px; color:#64748b;">MATCHED WITH</p>
+          <p style="margin:4px 0 16px; font-size:18px; font-weight:700; color:#e2e8f0;">${foundItem.title}</p>
+          <div style="text-align:center;">
+            <span class="badge">AI Confidence: ${percent}%</span>
+          </div>
         </div>
-      </div>
-      <div style="text-align:center">
-        <a href="${url}" class="btn">View Match Details</a>
-      </div>
-    `),
-  });
+        <div style="text-align:center">
+          <a href="${url}" class="btn">View Match Details</a>
+        </div>
+      `),
+    });
+    console.log(`[Email] Match notification sent successfully to ${user.email}`);
+  } catch (error) {
+    console.error(`[Email Error] Failed to send match notification to ${user.email}:`, error.message);
+    throw error;
+  }
 };
 
 export const sendWelcomeEmail = async (user) => {
-  await resend.emails.send({
-    from: FROM,
-    to: user.email,
-    subject: 'Welcome to FindIt! 🔍',
-    html: baseTemplate(`
-      <h2 style="color:#e2e8f0; margin-top:0;">Your account is verified! 🎉</h2>
-      <p>Hi ${user.name}, your email has been verified and your FindIt account is ready.</p>
-      <p>Here's what you can do:</p>
-      <ul style="color:#94a3b8; line-height:2;">
-        <li>📦 Report a lost or found item</li>
-        <li>🤖 Let AI match your items automatically</li>
-        <li>💬 Chat with item finders directly</li>
-        <li>🗺️ Browse items on an interactive map</li>
-      </ul>
-      <div style="text-align:center">
-        <a href="${BASE_URL}/dashboard" class="btn">Go to Dashboard</a>
-      </div>
-    `),
-  });
+  try {
+    await transporter.sendMail({
+      from: FROM,
+      to: user.email,
+      subject: 'Welcome to FindIt! 🔍',
+      html: baseTemplate(`
+        <h2 style="color:#e2e8f0; margin-top:0;">Your account is verified! 🎉</h2>
+        <p>Hi ${user.name}, your email has been verified and your FindIt account is ready.</p>
+        <p>Here's what you can do:</p>
+        <ul style="color:#94a3b8; line-height:2;">
+          <li>📦 Report a lost or found item</li>
+          <li>🤖 Let AI match your items automatically</li>
+          <li>💬 Chat with item finders directly</li>
+          <li>🗺️ Browse items on an interactive map</li>
+        </ul>
+        <div style="text-align:center">
+          <a href="${BASE_URL}/dashboard" class="btn">Go to Dashboard</a>
+        </div>
+      `),
+    });
+    console.log(`[Email] Welcome email sent successfully to ${user.email}`);
+  } catch (error) {
+    console.error(`[Email Error] Failed to send welcome email to ${user.email}:`, error.message);
+    throw error;
+  }
 };

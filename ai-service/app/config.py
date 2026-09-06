@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["development", "production", "test"] = "development"
 
     # CLIP Model
-    CLIP_MODEL: str = "MobileCLIP-S1"
+    CLIP_MODEL: str = "ViT-B-32"
 
     # Matching
     SIMILARITY_THRESHOLD: float = 0.85

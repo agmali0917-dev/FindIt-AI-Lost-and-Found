@@ -10,6 +10,7 @@ import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react'
 import { toast } from 'react-hot-toast'
+import { GoogleLogin } from '@react-oauth/google'
 import { useAuth } from '../../context/AuthContext'
 import { Input, Button } from '../../components/ui'
 import { useDocumentTitle } from '../../hooks/index'
@@ -21,7 +22,7 @@ const schema = z.object({
 
 export default function LoginPage() {
   useDocumentTitle('Sign In')
-  const { login } = useAuth()
+  const { login, googleLogin } = useAuth()
   const navigate  = useNavigate()
   const location  = useLocation()
   const from = location.state?.from?.pathname || '/dashboard'
@@ -47,11 +48,38 @@ export default function LoginPage() {
     }
   }
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      await googleLogin(credentialResponse.credential)
+      toast.success('Welcome back! 👋')
+      navigate(from, { replace: true })
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Google Sign-In failed.')
+    }
+  }
+
   return (
     <div>
       <div className="text-center mb-8">
         <h2 className="text-2xl font-black mb-2">Welcome back</h2>
         <p className="text-dark-100/50 text-sm">Sign in to your FindIt account</p>
+      </div>
+
+      <div className="flex flex-col items-center justify-center mt-6 mb-6">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() => toast.error('Google Sign-In was cancelled or failed.')}
+          useOneTap
+          shape="pill"
+          theme="filled_blue"
+          text="continue_with_google"
+        />
+      </div>
+
+      <div className="relative flex py-4 items-center mb-4">
+        <div className="flex-grow border-t border-dark-200/30"></div>
+        <span className="flex-shrink-0 mx-4 text-dark-100/50 text-xs font-semibold">OR LOG IN WITH EMAIL</span>
+        <div className="flex-grow border-t border-dark-200/30"></div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
