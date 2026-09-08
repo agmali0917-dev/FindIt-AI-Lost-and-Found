@@ -90,6 +90,7 @@ export default function SearchPage() {
     type: searchParams.get('type') || 'all',
     category: searchParams.get('category') || '',
     color: searchParams.get('color') || '',
+    city: searchParams.get('city') || '',
     startDate: searchParams.get('startDate') || '',
     endDate: searchParams.get('endDate') || '',
   })
@@ -103,6 +104,7 @@ export default function SearchPage() {
       type: filters.type,
       category: filters.category,
       color: filters.color,
+      city: filters.city,
       startDate: filters.startDate,
       endDate: filters.endDate,
     }),
@@ -221,6 +223,12 @@ export default function SearchPage() {
               <option value="">Any Color</option>
               {ITEM_COLORS.map(c => <option key={c}>{c}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="label">City</label>
+            <input type="text" value={filters.city} onChange={e => updateFilter('city', e.target.value)}
+              placeholder="e.g. New York"
+              className="input text-sm" id="search-city" />
           </div>
           <div>
             <label className="label">From Date</label>

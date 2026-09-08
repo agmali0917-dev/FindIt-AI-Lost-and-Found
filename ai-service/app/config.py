@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # Logging
     LOG_LEVEL: str = "INFO"
 
+    # Gemini
+    GEMINI_API_KEY: str = ""
+
     class Config:
         env_file = ".env"
         case_sensitive = True

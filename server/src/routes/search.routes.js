@@ -15,7 +15,7 @@ const router = Router();
 router.get('/', optionalAuth, searchRateLimiter, asyncHandler(async (req, res) => {
   const {
     q, type = 'all',
-    category, color, brand,
+    category, color, brand, city,
     startDate, endDate,
     lat, lng, maxDistance,
     page = 1, limit = 12,
@@ -30,6 +30,7 @@ router.get('/', optionalAuth, searchRateLimiter, asyncHandler(async (req, res) =
     if (category) query.category = category;
     if (color)    query.color    = { $regex: color, $options: 'i' };
     if (brand)    query.brand    = { $regex: brand, $options: 'i' };
+    if (city)     query['location.city'] = { $regex: city, $options: 'i' };
 
     if (lat && lng) {
       const dist = parseFloat(maxDistance) || 50;
