@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type:      String,
-      required:  [true, 'Password is required'],
+      required:  function() { return this.authProvider === 'local'; },
       minlength: [8, 'Password must be at least 8 characters'],
       select:    false, // Never return in queries by default
     },
@@ -41,6 +41,16 @@ const userSchema = new mongoose.Schema(
       type:    String,
       enum:    ['user', 'admin'],
       default: 'user',
+    },
+    authProvider: {
+      type:    String,
+      enum:    ['local', 'google'],
+      default: 'local',
+    },
+    googleId: {
+      type:    String,
+      unique:  true,
+      sparse:  true,
     },
     isEmailVerified: {
       type:    Boolean,
@@ -72,13 +82,21 @@ const userSchema = new mongoose.Schema(
       type:   String,
       select: false,
     },
-    emailVerificationToken: {
+    verificationOtpHash: {
       type:   String,
       select: false,
     },
-    emailVerificationExpires: {
+    verificationOtpExpiresAt: {
       type:   Date,
       select: false,
+    },
+    verificationOtpLastSentAt: {
+      type:   Date,
+      select: false,
+    },
+    verificationOtpAttempts: {
+      type:   Number,
+      default: 0,
     },
     passwordResetToken: {
       type:   String,
@@ -129,7 +147,7 @@ userSchema.virtual('avatarUrl').get(function () {
 
 // ─── Pre-save Hook: Hash Password ─────────────────────────────────────────────
 userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
@@ -143,10 +161,13 @@ userSchema.methods.toPublicJSON = function () {
   const obj = this.toObject();
   delete obj.password;
   delete obj.refreshToken;
-  delete obj.emailVerificationToken;
-  delete obj.emailVerificationExpires;
+  delete obj.verificationOtpHash;
+  delete obj.verificationOtpExpiresAt;
+  delete obj.verificationOtpLastSentAt;
+  delete obj.verificationOtpAttempts;
   delete obj.passwordResetToken;
   delete obj.passwordResetExpires;
+  delete obj.googleId;
   return obj;
 };
 
