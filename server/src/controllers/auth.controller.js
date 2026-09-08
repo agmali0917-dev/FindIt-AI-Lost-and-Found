@@ -5,6 +5,7 @@
  */
 
 import crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import User from '../models/User.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
@@ -24,83 +25,71 @@ import {
 } from '../utils/sendEmail.js';
 import jwt from 'jsonwebtoken';
 
-// ─── Register ─────────────────────────────────────────────────────────────────
-export const register = asyncHandler(async (req, res) => {
-  const { name, email, password, phone } = req.body;
+// ─── Google Auth ──────────────────────────────────────────────────────────────
+export const googleAuth = asyncHandler(async (req, res) => {
+  const { credential } = req.body;
+  if (!credential) throw new ApiError(400, 'Google credential is required.');
 
-  // Check if user exists
-  const existingUser = await User.findOne({ email });
-  if (existingUser) {
-    throw new ApiError(409, 'An account with this email already exists.');
+  const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  
+  let payload;
+  try {
+    const ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    payload = ticket.getPayload();
+  } catch (error) {
+    throw new ApiError(401, 'Invalid Google token.');
   }
 
-  // Generate email verification token
-  const verificationToken = generateSecureToken();
-  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+  const { sub: googleId, email, name, picture } = payload;
+  if (!email) throw new ApiError(400, 'Google account has no email associated.');
 
-  // Create user
-  const user = await User.create({
-    name,
-    email,
-    password,
-    phone,
-    emailVerificationToken: hashToken(verificationToken),
-    emailVerificationExpires: verificationExpires,
-  });
+  const normalizedEmail = email.toLowerCase().trim();
+  let user = await User.findOne({ email: normalizedEmail }).select('+refreshToken');
 
-  // Send verification email (don't block response on email failure)
-  sendVerificationEmail(user, verificationToken).catch((err) => {
-    console.error('Failed to send verification email:', err.message);
-  });
-
-  res.status(201).json(
-    new ApiResponse(201, {
-      user: user.toPublicJSON(),
-      message: 'Verification email sent',
-    }, 'Account created! Please check your email to verify your account.')
-  );
-});
-
-// ─── Verify Email ─────────────────────────────────────────────────────────────
-export const verifyEmail = asyncHandler(async (req, res) => {
-  const { token } = req.params;
-  const hashedToken = hashToken(token);
-
-  const user = await User.findOne({
-    emailVerificationToken:   hashedToken,
-    emailVerificationExpires: { $gt: Date.now() },
-  });
-
-  if (!user) {
-    throw new ApiError(400, 'Email verification token is invalid or has expired.');
+  if (user) {
+    // Check ban
+    if (user.isBanned) {
+      throw new ApiError(403, `Account suspended. ${user.banReason || 'Contact support.'}`);
+    }
+    
+    // Link google account if not linked
+    if (!user.googleId) {
+      user.googleId = googleId;
+      user.isEmailVerified = true;
+      await user.save({ validateBeforeSave: false });
+    } else if (user.googleId !== googleId) {
+      throw new ApiError(400, 'This email is already linked to a different Google account.');
+    }
+  } else {
+    // Create new user
+    user = await User.create({
+      name,
+      email: normalizedEmail,
+      googleId,
+      authProvider: 'google',
+      isEmailVerified: true,
+      avatar: { url: picture, publicId: '' }
+    });
   }
 
-  user.isEmailVerified = true;
-  user.emailVerificationToken = undefined;
-  user.emailVerificationExpires = undefined;
+  // Generate tokens
+  const accessToken  = generateAccessToken(user._id);
+  const refreshToken = generateRefreshToken(user._id);
+
+  user.refreshToken = hashToken(refreshToken);
+  user.lastActiveAt = new Date();
   await user.save({ validateBeforeSave: false });
 
-  // Send welcome email
-  sendWelcomeEmail(user).catch(console.error);
+  setTokenCookies(res, accessToken, refreshToken);
 
-  res.json(new ApiResponse(200, null, 'Email verified successfully! You can now log in.'));
-});
-
-// ─── Resend Verification Email ────────────────────────────────────────────────
-export const resendVerificationEmail = asyncHandler(async (req, res) => {
-  const { email } = req.body;
-  const user = await User.findOne({ email }).select('+emailVerificationToken');
-
-  if (!user) throw new ApiError(404, 'No account found with this email.');
-  if (user.isEmailVerified) throw new ApiError(400, 'Email is already verified.');
-
-  const verificationToken = generateSecureToken();
-  user.emailVerificationToken = hashToken(verificationToken);
-  user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  await user.save({ validateBeforeSave: false });
-
-  await sendVerificationEmail(user, verificationToken);
-  res.json(new ApiResponse(200, null, 'Verification email resent.'));
+  res.json(new ApiResponse(200, {
+    user:         user.toPublicJSON(),
+    accessToken,
+    refreshToken,
+  }, 'Logged in with Google successfully.'));
 });
 
 // ─── Login ────────────────────────────────────────────────────────────────────
@@ -134,10 +123,10 @@ export const login = asyncHandler(async (req, res) => {
 
   // Check email verification
   if (!user.isEmailVerified) {
-    throw new ApiError(403, 'Please verify your email before logging in.', [{
-      field: 'email',
-      message: 'Email not verified',
-    }]);
+    return res.status(403).json(new ApiResponse(403, { 
+      requiresVerification: true,
+      email: user.email 
+    }, 'Please verify your email before logging in.'));
   }
 
   // Generate tokens

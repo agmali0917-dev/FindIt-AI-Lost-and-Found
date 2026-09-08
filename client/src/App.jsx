@@ -18,7 +18,6 @@ import PageLoader from './components/ui/PageLoader'
 const LandingPage      = lazy(() => import('./pages/LandingPage'))
 const LoginPage        = lazy(() => import('./pages/auth/LoginPage'))
 const RegisterPage     = lazy(() => import('./pages/auth/RegisterPage'))
-const VerifyEmailPage  = lazy(() => import('./pages/auth/VerifyEmailPage'))
 const ForgotPassword   = lazy(() => import('./pages/auth/ForgotPasswordPage'))
 const ResetPassword    = lazy(() => import('./pages/auth/ResetPasswordPage'))
 
@@ -62,7 +61,6 @@ export default function App() {
             <Route element={<AuthLayout />}>
               <Route path="/login"                    element={<LoginPage />} />
               <Route path="/register"                 element={<RegisterPage />} />
-              <Route path="/verify-email/:token"      element={<VerifyEmailPage />} />
               <Route path="/forgot-password"          element={<ForgotPassword />} />
               <Route path="/reset-password/:token"    element={<ResetPassword />} />
             </Route>

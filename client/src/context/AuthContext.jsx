@@ -47,6 +47,17 @@ export const AuthProvider = ({ children }) => {
     return user
   }, [])
 
+  // ─── Google Login ─────────────────────────────────────────────────────────────
+  const googleLogin = useCallback(async (credential) => {
+    const { data } = await authService.googleLogin({ credential })
+    const { user, accessToken, refreshToken } = data.data
+    localStorage.setItem('user',          JSON.stringify(user))
+    localStorage.setItem('accessToken',   accessToken)
+    localStorage.setItem('refreshToken',  refreshToken)
+    setUser(user)
+    return user
+  }, [])
+
   // ─── Logout ───────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     try { await authService.logout() } catch { /* ignore */ }
@@ -68,7 +79,7 @@ export const AuthProvider = ({ children }) => {
   return (
     <AuthContext.Provider value={{
       user, loading, isAuthenticated, isAdmin,
-      login, logout, updateUser,
+      login, googleLogin, logout, updateUser,
     }}>
       {children}
     </AuthContext.Provider>

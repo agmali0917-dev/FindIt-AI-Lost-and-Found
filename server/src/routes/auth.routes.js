@@ -14,9 +14,7 @@
 
 import { Router } from 'express';
 import {
-  register,
-  verifyEmail,
-  resendVerificationEmail,
+  googleAuth,
   login,
   refreshToken,
   logout,
@@ -31,10 +29,8 @@ import { authRateLimiter } from '../middleware/rateLimiter.js';
 const router = Router();
 
 // Public routes (rate limited)
-router.post('/register',            authRateLimiter, register);
+router.post('/google',              authRateLimiter, googleAuth);
 router.post('/login',               authRateLimiter, login);
-router.get('/verify-email/:token',                   verifyEmail);
-router.post('/resend-verification', authRateLimiter, resendVerificationEmail);
 router.post('/forgot-password',     authRateLimiter, forgotPassword);
 router.post('/reset-password/:token',                resetPassword);
 router.post('/refresh-token',                        refreshToken);
