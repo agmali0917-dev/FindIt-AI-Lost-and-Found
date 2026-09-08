@@ -81,3 +81,9 @@ export const adminService = {
   featureItem:  (id) => api.put(`/admin/items/${id}/feature`),
   deleteItem:   (id, type) => api.delete(`/admin/items/${id}`, { params: { type } }),
 }
+
+export const aiService = {
+  autoFill: (formData) => api.post('/ai/auto-fill', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+}
