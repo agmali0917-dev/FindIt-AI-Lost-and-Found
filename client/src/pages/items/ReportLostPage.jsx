@@ -19,7 +19,7 @@ import { toast } from 'react-hot-toast'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { Input, Textarea, Select, Button } from '../../components/ui'
-import { lostItemService } from '../../services'
+import { lostItemService, aiService } from '../../services'
 import { useDocumentTitle } from '../../hooks/index'
 import { ITEM_CATEGORIES, ITEM_COLORS } from '../../utils/constants'
 
@@ -107,8 +107,9 @@ export default function ReportLostPage() {
   
   const [isLocating, setIsLocating] = useState(false)
   const [centerMapLocation, setCenterMapLocation] = useState(null)
+  const [isAutoFilling, setIsAutoFilling] = useState(false)
 
-  const { register, handleSubmit, trigger, getValues, formState: { errors } } = useForm({
+  const { register, handleSubmit, trigger, getValues, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(step1Schema),
   })
 
@@ -172,6 +173,34 @@ export default function ReportLostPage() {
       },
       { timeout: 10000 }
     )
+  }
+
+  const handleAutoFill = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsAutoFilling(true)
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      const res = await aiService.autoFill(formData)
+      const data = res.data.data
+      
+      if (data.title) setValue('title', data.title, { shouldValidate: true })
+      if (data.category && ITEM_CATEGORIES.includes(data.category)) {
+        setValue('category', data.category, { shouldValidate: true })
+      }
+      if (data.brand) setValue('brand', data.brand, { shouldValidate: true })
+      if (data.color) setValue('color', data.color, { shouldValidate: true })
+      if (data.description) setValue('description', data.description, { shouldValidate: true })
+      
+      toast.success('Form auto-filled by AI!')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to auto-fill form.')
+    } finally {
+      setIsAutoFilling(false)
+    }
   }
 
   // ─── Step Navigation ─────────────────────────────────────────────────────────
@@ -267,6 +296,19 @@ export default function ReportLostPage() {
           {step === 0 && (
             <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               className="space-y-5">
+              
+              <div className="flex items-center justify-between bg-primary-900/20 border border-primary-500/20 p-4 rounded-xl">
+                <div>
+                  <h3 className="font-bold text-sm text-primary-300">✨ Magic Auto-Fill</h3>
+                  <p className="text-xs text-dark-100/60 mt-0.5">Upload a photo of the item to automatically fill these details.</p>
+                </div>
+                <label className={`btn btn-primary btn-sm ${isAutoFilling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  {isAutoFilling ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                  {isAutoFilling ? 'Analyzing...' : 'Upload Photo'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAutoFill} disabled={isAutoFilling} />
+                </label>
+              </div>
+
               <Input label="Item Title *" placeholder="e.g. Black AirPods Pro Case"
                 error={errors.title?.message} id="lost-title" {...register('title')} />
 

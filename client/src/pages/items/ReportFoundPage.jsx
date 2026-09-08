@@ -17,7 +17,7 @@ import { toast } from 'react-hot-toast'
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import { Input, Textarea, Select, Button } from '../../components/ui'
-import { foundItemService } from '../../services'
+import { foundItemService, aiService } from '../../services'
 import { useDocumentTitle } from '../../hooks/index'
 import { ITEM_CATEGORIES } from '../../utils/constants'
 
@@ -87,8 +87,9 @@ export default function ReportFoundPage() {
   const [address, setAddress] = useState('')
   const [isLocating, setIsLocating] = useState(false)
   const [centerMapLocation, setCenterMapLocation] = useState(null)
+  const [isAutoFilling, setIsAutoFilling] = useState(false)
 
-  const { register, handleSubmit, trigger, formState: { errors } } = useForm({ resolver: zodResolver(schema) })
+  const { register, handleSubmit, trigger, setValue, formState: { errors } } = useForm({ resolver: zodResolver(schema) })
 
   const onDrop = useCallback((files) => {
     const imgs = files.map(f => ({ file: f, preview: URL.createObjectURL(f), id: Math.random().toString(36).slice(2) }))
@@ -136,6 +137,37 @@ export default function ReportFoundPage() {
       },
       { timeout: 10000 }
     )
+  }
+
+    )
+  }
+
+  const handleAutoFill = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsAutoFilling(true)
+    const formData = new FormData()
+    formData.append('image', file)
+
+    try {
+      const res = await aiService.autoFill(formData)
+      const data = res.data.data
+      
+      if (data.title) setValue('title', data.title, { shouldValidate: true })
+      if (data.category && ITEM_CATEGORIES.includes(data.category)) {
+        setValue('category', data.category, { shouldValidate: true })
+      }
+      if (data.brand) setValue('brand', data.brand, { shouldValidate: true })
+      if (data.color) setValue('color', data.color, { shouldValidate: true })
+      if (data.description) setValue('description', data.description, { shouldValidate: true })
+      
+      toast.success('Form auto-filled by AI!')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to auto-fill form.')
+    } finally {
+      setIsAutoFilling(false)
+    }
   }
 
   const goNext = async () => {
@@ -199,6 +231,19 @@ export default function ReportFoundPage() {
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               className="space-y-5">
+              
+              <div className="flex items-center justify-between bg-success-900/20 border border-success-500/20 p-4 rounded-xl">
+                <div>
+                  <h3 className="font-bold text-sm text-success-300">✨ Magic Auto-Fill</h3>
+                  <p className="text-xs text-dark-100/60 mt-0.5">Upload a photo of the item to automatically fill these details.</p>
+                </div>
+                <label className={`btn btn-success btn-sm ${isAutoFilling ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  {isAutoFilling ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                  {isAutoFilling ? 'Analyzing...' : 'Upload Photo'}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleAutoFill} disabled={isAutoFilling} />
+                </label>
+              </div>
+
               <Input label="Item Title *" placeholder="e.g. Found black wallet near park"
                 error={errors.title?.message} id="found-title" {...register('title')} />
               <div className="grid grid-cols-2 gap-4">

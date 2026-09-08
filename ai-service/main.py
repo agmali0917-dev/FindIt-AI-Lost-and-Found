@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 import logging
 
 from app.config import settings
-from app.routers import match, health, embeddings
+from app.routers import match, health, embeddings, analyze
 from app.services.clip_service import CLIPService
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
@@ -60,6 +60,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 app.include_router(health.router, tags=["Health"])
 app.include_router(match.router, prefix="/match", tags=["Matching"])
 app.include_router(embeddings.router, prefix="/embeddings", tags=["Embeddings"])
+app.include_router(analyze.router, prefix="/analyze", tags=["Analyze"])
 
 
 if __name__ == "__main__":

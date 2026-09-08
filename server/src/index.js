@@ -31,6 +31,7 @@ import chatRoutes from './routes/chat.routes.js';
 import notificationRoutes from './routes/notification.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 import searchRoutes from './routes/search.routes.js';
+import aiRoutes from './routes/ai.routes.js';
 
 // ─── App Setup ────────────────────────────────────────────────────────────────
 const app = express();
@@ -94,6 +95,7 @@ app.use('/api/chats',         chatRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin',         adminRoutes);
 app.use('/api/search',        searchRoutes);
+app.use('/api/ai',            aiRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use('*', (req, res) => {
